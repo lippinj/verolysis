@@ -1,4 +1,6 @@
 import dataclasses
+from typing import Union
+
 import numpy as np
 
 
@@ -28,9 +30,9 @@ class PiecewiseDensity:
     def xmax(self):
         return None if self.empty else self._segments[-1].b
 
-    def sum(self, a=None, b=None) -> float:
+    def count(self, a=None, b=None) -> float:
         """
-        Integral of the density function from a to b
+        Integral of the density function, from a to b
 
         None means infinity (negative infinity for a, positive for b).
         """
@@ -41,7 +43,20 @@ class PiecewiseDensity:
                 n += overlap.n
         return n
 
-    def add(self, arg: "Segment" | "PiecewiseDensity") -> None:
+    def sum(self, a=None, b=None) -> float:
+        """
+        Integral of the density function times x, from a to b
+
+        None means infinity (negative infinity for a, positive for b).
+        """
+        n = 0.0
+        for seg in self._segments:
+            overlap = seg.overlap(a, b)
+            if overlap:
+                n += overlap.s
+        return n
+
+    def add(self, arg: Union["Segment", "PiecewiseDensity"]) -> None:
         """Sum a new segment into this function"""
         if isinstance(arg, Segment):
             return self._add_segment(arg)
@@ -55,7 +70,7 @@ class PiecewiseDensity:
         else:
             self._assimilate(seg)
 
-    def _assimilate(self, incoming: "Segment") -> None:
+    def _assimilate(self, incoming: Union["Segment", None]) -> None:
         segments = []
         for existing in self._segments:
             if incoming is None:
@@ -63,6 +78,8 @@ class PiecewiseDensity:
             else:
                 processed, incoming = Segment.merge(existing, incoming)
                 segments += processed
+        if incoming:
+            segments.append(incoming)
         self._segments = segments
 
 
@@ -79,8 +96,16 @@ class Segment:
         return self.b - self.a
 
     @property
+    def m(self):
+        return (self.a + self.b) / 2
+
+    @property
     def n(self):
         return self.w * self.h
+
+    @property
+    def s(self):
+        return self.n * self.m
 
     def overlap(self, a, b):
         a = self.a if a is None else max(a, self.a)
@@ -88,37 +113,32 @@ class Segment:
         return Segment(a, b, self.h) if b > a else None
 
     @staticmethod
-    def merge(s: "Segment", t: "Segment") -> tuple[list["Segment"], "Segment" | None]:
+    def merge(
+        s: "Segment", t: "Segment"
+    ) -> tuple[list["Segment"], Union["Segment", None]]:
+        S = Segment
         if s.a < t.a:
             if s.b <= t.a:
                 return [s], t
             elif s.b < t.b:
-                return [Segment(s.a, t.a, s.h), Segment(t.a, s.b, s.h + t.h)], Segment(
-                    s.b, t.b, t.h
-                )
+                return [S(s.a, t.a, s.h), S(t.a, s.b, s.h + t.h)], S(s.b, t.b, t.h)
             elif s.b == t.b:
-                return [Segment(s.a, t.a, s.h), Segment(t.a, s.b, s.h + t.h)], None
+                return [S(s.a, t.a, s.h), S(t.a, s.b, s.h + t.h)], None
             else:
-                return [Segment(s.a, t.a, s.h), Segment(t.a, t.b, s.h + t.h)], Segment(
-                    t.b, s.b, s.h
-                )
+                return [S(s.a, t.a, s.h), S(t.a, t.b, s.h + t.h)], S(t.b, s.b, s.h)
         elif s.a == t.a:
             if s.b < t.b:
-                return [Segment(s.a, s.b, s.h + t.h)], Segment(s.b, t.b, t.h)
+                return [S(s.a, s.b, s.h + t.h)], S(s.b, t.b, t.h)
             elif s.b == t.b:
-                return [Segment(s.a, s.b, s.h + t.h)], None
+                return [S(s.a, s.b, s.h + t.h)], None
             else:
-                return [Segment(s.a, t.b, s.h + t.h)], Segment(t.b, s.b, s.h)
+                return [S(s.a, t.b, s.h + t.h)], S(t.b, s.b, s.h)
         elif s.a < t.b:
             if s.b < t.b:
-                return [Segment(t.a, s.a, t.h), Segment(s.a, s.b, t.h + s.h)], Segment(
-                    s.b, t.b, t.h
-                )
+                return [S(t.a, s.a, t.h), S(s.a, s.b, t.h + s.h)], S(s.b, t.b, t.h)
             elif s.b == t.b:
-                return [Segment(t.a, s.a, t.h), Segment(s.a, t.b, t.h + s.h)], None
+                return [S(t.a, s.a, t.h), S(s.a, t.b, t.h + s.h)], None
             else:
-                return [Segment(t.a, s.a, t.h), Segment(s.a, t.b, t.h + s.h)], Segment(
-                    t.b, s.b, s.h
-                )
+                return [S(t.a, s.a, t.h), S(s.a, t.b, t.h + s.h)], S(t.b, s.b, s.h)
         else:
             return [t], s

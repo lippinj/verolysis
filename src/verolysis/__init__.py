@@ -1,1 +1,2 @@
 from verolysis.piecewise_density import PiecewiseDensity
+from verolysis.piecewise_density_optimizer import PiecewiseDensityOptimizer
