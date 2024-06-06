@@ -1,3 +1,4 @@
 matplotlib
 numpy
 pandas
+verolysis>=0.0.2
