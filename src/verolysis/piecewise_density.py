@@ -41,12 +41,19 @@ class PiecewiseDensity:
                 n += overlap.n
         return n
 
-    def add(self, segment: "Segment") -> None:
+    def add(self, arg: "Segment" | "PiecewiseDensity") -> None:
         """Sum a new segment into this function"""
-        if len(self._segments) == 0:
-            self._segments = [segment]
+        if isinstance(arg, Segment):
+            return self._add_segment(arg)
         else:
-            self._assimilate(segment)
+            for seg in arg._segments:
+                self._add_segment(seg)
+
+    def _add_segment(self, seg: "Segment") -> None:
+        if len(self._segments) == 0:
+            self._segments = [seg]
+        else:
+            self._assimilate(seg)
 
     def _assimilate(self, incoming: "Segment") -> None:
         segments = []
@@ -56,7 +63,7 @@ class PiecewiseDensity:
             else:
                 processed, incoming = Segment.merge(existing, incoming)
                 segments += processed
-        return segments
+        self._segments = segments
 
 
 @dataclasses.dataclass
@@ -81,7 +88,7 @@ class Segment:
         return Segment(a, b, self.h) if b > a else None
 
     @staticmethod
-    def merge(s: "Segment", t: "Segment") -> tuple[list["Segment"], "Segment"]:
+    def merge(s: "Segment", t: "Segment") -> tuple[list["Segment"], "Segment" | None]:
         if s.a < t.a:
             if s.b <= t.a:
                 return [s], t
