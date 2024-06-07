@@ -3,4 +3,4 @@ numpy
 pandas
 scipy
 
-statfin>=0.0.2
+statfin>=0.0.3

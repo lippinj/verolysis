@@ -6,11 +6,12 @@ from verolysis.piecewise_density import PiecewiseDensity, Segment
 class PiecewiseDensityOptimizer:
     """Optimizing builder for PiecewiseDensity"""
 
-    def __init__(self, N: float, mean: float):
+    def __init__(self, N: float, mean: float, xmin: float = -np.inf):
         self._N: float = N
         self._mean: float = mean
         self._total: float = N * mean
         self._places: list[tuple[float, float]] = []
+        self._xmin: float = xmin
         self._left: float | None = None
         self._right: float | None = None
         self._opt_kc: tuple[float, float] | None = None
@@ -39,7 +40,7 @@ class PiecewiseDensityOptimizer:
             self._score,
             self._compute_amax(),
             method="trust-constr",
-            constraints=self._compute_constraints(),
+            bounds=scipy.optimize.Bounds(self._xmin, self._compute_amax()),
         )
         if not opt.success:
             raise opt
@@ -57,10 +58,14 @@ class PiecewiseDensityOptimizer:
 
         n1 = N * (fL - 0.0)
         nN = N * (1.0 - fR)
-        C = 2 * (N * m - self._fixed_sum()) - (n1 * xL) - (nN * xR)
+        S = N * m
+        M = self._fixed_sum()
+        assert n1 > 0
+        assert nN > 0
 
         k = -(n1 / nN)
-        c = C / nN
+        assert k < 0
+        c = (2 / nN) * (S - M - (n1 / 2) * xL - (nN / 2) * xR)
         self._opt_kc = (k, c)
         return k, c
 
@@ -77,14 +82,7 @@ class PiecewiseDensityOptimizer:
         k, c = self._require_constants()
         _, xL = self._places[0]
         _, xR = self._places[-1]
-        return min(xL, (c - xR) / k)
-
-    def _compute_constraints(self) -> list[scipy.optimize.LinearConstraint]:
-        # Logical constraints:
-        #   -oo <  a <= L
-        #     R <= b <  oo
-        amax = self._compute_amax()
-        return [scipy.optimize.LinearConstraint([[1]], [-np.inf], [amax])]
+        return min(xL, (xR - c) / k)
 
     def _score(self, x):
         a = x[0]
