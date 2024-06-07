@@ -24,7 +24,7 @@ def to_density(df: pd.DataFrame) -> PiecewiseDensity:
     f = PiecewiseDensity()
     for i in range(len(df)):
         row = df.iloc[i]
-        if row.Tuloluokka != "Y":
+        if row.Tuloluokka != "SS":
             optimizer, opt = _optimize_row_density(row)
             f.add(optimizer.build())
     return f

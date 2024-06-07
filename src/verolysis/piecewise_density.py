@@ -18,17 +18,39 @@ class PiecewiseDensity:
     def __init__(self):
         self._segments = []
 
+    def __len__(self):
+        return len(self._segments)
+
+    def __getitem__(self, *args):
+        return self._segments[*args]
+
     @property
-    def empty(self):
+    def empty(self) -> bool:
         return len(self._segments) == 0
 
     @property
     def xmin(self):
-        return None if self.empty else self._segments[0].a
+        return None if self.empty else self[0].a
 
     @property
     def xmax(self):
-        return None if self.empty else self._segments[-1].b
+        return None if self.empty else self[-1].b
+
+    @property
+    def va(self):
+        return np.array([seg.a for seg in self._segments])
+
+    @property
+    def vb(self):
+        return np.array([seg.b for seg in self._segments])
+
+    @property
+    def vw(self):
+        return np.array([seg.w for seg in self._segments])
+
+    @property
+    def vh(self):
+        return np.array([seg.h for seg in self._segments])
 
     def count(self, a=None, b=None) -> float:
         """
@@ -55,6 +77,18 @@ class PiecewiseDensity:
             if overlap:
                 n += overlap.s
         return n
+
+    def mean(self, a=None, b=None) -> float | None:
+        """
+        Average of the function
+
+        None means infinity (negative infinity for a, positive for b).
+        """
+        N = self.count(a, b)
+        if N > 0.0:
+            return self.sum(a, b) / N
+        else:
+            return None
 
     def add(self, arg: Union["Segment", "PiecewiseDensity"]) -> None:
         """Sum a new segment into this function"""
