@@ -28,10 +28,12 @@ class PiecewiseDensityOptimizer:
         if fr.left_coeff < 0.5:
             x0 = [fr.amid, fr.amin, 0.0]
             bounds = fr.bounds3()
+            constraints = fr.constraints3()
         else:
             x0 = [fr.amax]
             bounds = fr.bounds1()
-        opt = self._optimize(x0, bounds)
+            constraints = None
+        opt = self._optimize(x0, bounds, constraints)
         self._x = opt.x
         return opt
 
@@ -41,12 +43,13 @@ class PiecewiseDensityOptimizer:
             f.add(seg)
         return f
 
-    def _optimize(self, x0, bounds) -> scipy.optimize.OptimizeResult:
+    def _optimize(self, x0, bounds, constraints) -> scipy.optimize.OptimizeResult:
         opt = scipy.optimize.minimize(
             self._score,
             x0,
             method="trust-constr",
             bounds=bounds,
+            constraints=constraints,
         )
         if not opt.success:
             raise opt
@@ -160,7 +163,7 @@ class FringeCondition:
         xL: float,
         fR: float,
         xR: float,
-        amin: float | None = None,
+        amin: float,
     ):
         # Weights on the fringes
         nL = N * (fL - 0.0)
@@ -185,7 +188,7 @@ class FringeCondition:
         self.nL = nL
         self.xL = xL
         self.amin = amin
-        if amin is not None:
+        if np.isfinite(amin):
             self.left_coeff = (self.amax - amin) / (xL - amin)
             self.amid = (xL + amin) / 2
         else:
@@ -202,11 +205,15 @@ class FringeCondition:
             n0 = x[2]
             return (self.ka * a1) + (self.kn0 * n0) + (self.kn0a0 * n0 * a0) + self.c
 
-    def bounds1(self) -> tuple[tuple[float, float]]:
-        return ((self.amin, self.amax),)
+    def bounds1(self) -> list[tuple[float | None, float | None]]:
+        return [(self.amin, self.amax)]
 
-    def bounds3(self) -> scipy.optimize.Bounds:
-        return ((self.amin, self.xL), (self.amin, self.xL), (0.0, self.nL))
+    def bounds3(self) -> list[tuple[float | None, float | None]]:
+        return [(self.amin, self.xL), (self.amin, self.xL), (0.0, self.nL)]
+
+    def constraints3(self) -> list[scipy.optimize.LinearConstraint]:
+        # a1 - a0 >= 0
+        return scipy.optimize.LinearConstraint([[1, -1, 0]], lb=0.0)
 
     @staticmethod
     def for_optimizer(opt: PiecewiseDensityOptimizer) -> "FringeCondition":
