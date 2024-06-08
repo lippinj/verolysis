@@ -78,7 +78,7 @@ class PiecewiseDensity:
                 n += overlap.s
         return n
 
-    def mean(self, a=None, b=None) -> float | None:
+    def mean(self, a=None, b=None) -> float:
         """
         Average of the function
 
@@ -88,7 +88,25 @@ class PiecewiseDensity:
         if N > 0.0:
             return self.sum(a, b) / N
         else:
-            return None
+            return np.nan
+
+    def tail_ratio(self, x: float) -> float:
+        """
+        Ratio of mean above x to x
+
+        This fraction occurs in Saez (2001) as the ratio of mean income above
+        z to z, i.e., z_m / z. It is related to the pareto parameter.
+        """
+        return self.mean(x, None) / x
+
+    def pareto(self, x: float) -> float:
+        """Pareto parameter of the tail above x"""
+        assert x >= 0
+        if x > 0:
+            r = self.tail_ratio(x)
+            return r / (r - 1)
+        else:
+            return 1.0
 
     def add(self, arg: Union["Segment", "PiecewiseDensity"]) -> None:
         """Sum a new segment into this function"""
