@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+import warnings
 from typing import Union
 from verolysis.piecewise_density import PiecewiseDensity, Segment
 
@@ -26,15 +27,16 @@ class PiecewiseDensityOptimizer:
     def optimize(self) -> scipy.optimize.OptimizeResult:
         fr = self._require_fringe_condition()
         if fr.left_coeff < 0.5:
-            x0 = [fr.amid, fr.amin, 0.0]
+            x0 = fr.init3()
             bounds = fr.bounds3()
             constraints = fr.constraints3()
         else:
-            x0 = [fr.amax]
+            x0 = fr.init1()
             bounds = fr.bounds1()
             constraints = None
         opt = self._optimize(x0, bounds, constraints)
-        self._x = opt.x
+        if opt.success:
+            self._x = opt.x
         return opt
 
     def build(self):
@@ -44,6 +46,10 @@ class PiecewiseDensityOptimizer:
         return f
 
     def _optimize(self, x0, bounds, constraints) -> scipy.optimize.OptimizeResult:
+        warnings.filterwarnings(
+            "ignore",
+            message="delta_grad == 0.0. Check if the approximated function is linear.",
+        )
         opt = scipy.optimize.minimize(
             self._score,
             x0,
@@ -51,12 +57,7 @@ class PiecewiseDensityOptimizer:
             bounds=bounds,
             constraints=constraints,
         )
-        if not opt.success:
-            raise opt
-        if opt.x[0] >= self._places[0][1]:
-            raise opt
-        if self._compute_b(opt.x) <= self._places[-1][1]:
-            raise opt
+        warnings.resetwarnings()
         return opt
 
     def _require_fringe_condition(self) -> "FringeCondition":
@@ -64,7 +65,7 @@ class PiecewiseDensityOptimizer:
             self._fringe_condition = FringeCondition.for_optimizer(self)
         return self._fringe_condition
 
-    def _compute_b(self, x: np.ndarray) -> float:
+    def _compute_b(self, x: np.ndarray) -> tuple[float, float]:
         fr = self._require_fringe_condition()
         return fr(x)
 
@@ -81,27 +82,12 @@ class PiecewiseDensityOptimizer:
 
     def _score1(self, x):
         fr = self._require_fringe_condition()
-        b = fr(x)
-        s1 = self._score_line(x[0], self._places[0][1], self._places[1][1])
-        s2 = self._score_line(self._places[-2][1], self._places[-1][1], b)
-        return s1 + s2
+        return fr.score_left1(x) + fr.score_right(*fr(x))
 
     def _score3(self, x):
         fr = self._require_fringe_condition()
         a1, a0, n0 = x
-        b = fr(x)
-        s0 = self._score_line(a0, a1, self._places[0][1])
-        s1 = self._score_line(a1, self._places[0][1], self._places[1][1])
-        s2 = self._score_line(self._places[-2][1], self._places[-1][1], b)
-        return s0 + s1 + s2
-
-    def _score_line(self, a, b, c):
-        ab = b - a
-        bc = c - b
-        if ab == 0 or bc == 0:
-            return 1.0
-        else:
-            return (min(ab, bc) / max(ab, bc) - 1) ** 2
+        return fr.score_left3(x) + fr.score_right(*fr(x))
 
     def _fixed_sum(self):
         return np.sum([s.s for s in self._fixed_segments()])
@@ -117,7 +103,7 @@ class PiecewiseDensityOptimizer:
     def _full_segments1(self):
         x = self._x
         a = x[0]
-        b = self._compute_b(x)
+        b, _ = self._compute_b(x)
         left = (0.0, a)
         right = (1.0, b)
         return self._segments([left] + self._places + [right])
@@ -125,7 +111,7 @@ class PiecewiseDensityOptimizer:
     def _full_segments3(self):
         x = self._x
         a1, a0, n0 = x
-        b = self._compute_b(x)
+        b, _ = self._compute_b(x)
         left0 = (0.0, a0)
         left1 = (n0 / self._N, a1)
         right = (1.0, b)
@@ -156,9 +142,9 @@ class FringeCondition:
 
     def __init__(
         self,
+        fixed: list[Segment],
         N: float,
         m: float,
-        s: float,
         fL: float,
         xL: float,
         fR: float,
@@ -170,7 +156,7 @@ class FringeCondition:
         nR = N * (1.0 - fR)
 
         # Sum budget for the fringes
-        C = N * m - s
+        C = N * m - np.sum([seg.s for seg in fixed])
         nC = nL + nR
         assert nC > 0
         assert amin is None or C > amin * nC
@@ -185,8 +171,11 @@ class FringeCondition:
         self.amax = min(xL, (xR - self.c) / self.ka)
 
         # Miscellaneous constants
+        self.fixed = fixed
         self.nL = nL
         self.xL = xL
+        self.nR = nR
+        self.xR = xR
         self.amin = amin
         if np.isfinite(amin):
             self.left_coeff = (self.amax - amin) / (xL - amin)
@@ -194,16 +183,22 @@ class FringeCondition:
         else:
             self.left_coeff = 1.0
 
-    def __call__(self, x) -> float:
+    def __call__(self, x) -> tuple[float, float]:
         if len(x) == 1:
             a = x[0]
-            return (self.ka * a) + self.c
+            b = (self.ka * a) + self.c
         else:
             assert len(x) == 3
-            a1 = x[0]
-            a0 = x[1]
-            n0 = x[2]
-            return (self.ka * a1) + (self.kn0 * n0) + (self.kn0a0 * n0 * a0) + self.c
+            a1, a0, n0 = x
+            b = (self.ka * a1) + (self.kn0 * n0) + (self.kn0a0 * n0 * a0) + self.c
+        nb = self.nR / (b - self.xR)
+        return b, nb
+
+    def init1(self) -> list[float]:
+        return [self.amax - 1.0]
+
+    def init3(self) -> list[float]:
+        return [self.amid, self.amin, self.nL / 2]
 
     def bounds1(self) -> list[tuple[float | None, float | None]]:
         return [(self.amin, self.amax)]
@@ -215,12 +210,33 @@ class FringeCondition:
         # a1 - a0 >= 0
         return scipy.optimize.LinearConstraint([[1, -1, 0]], lb=0.0)
 
+    def score_left1(self, x: np.ndarray) -> float:
+        a1 = x[0]
+        a2 = self.fixed[0].a
+        a3 = self.fixed[1].a
+        return self._score_eq(a3 - a2, a2 - a1)
+
+    def score_left3(self, x: np.ndarray) -> float:
+        return self.score_left1(x)
+
+    def score_right(self, b: float, nb: float) -> float:
+        b2 = self.fixed[-1].b
+        b3 = self.fixed[-1].a
+        return self._score_eq(b - b2, b2 - b3)
+
+    def _score_eq(self, a: float, b: float) -> float:
+        if a == 0 or b == 0:
+            return 1.0
+        else:
+            r = min(a, b) / max(a, b)
+            return (r - 1) ** 2
+
     @staticmethod
     def for_optimizer(opt: PiecewiseDensityOptimizer) -> "FringeCondition":
         N = opt._N
         m = opt._mean
         amin = opt._amin
-        s = opt._fixed_sum()
+        fixed = list(opt._fixed_segments())
         fL, xL = opt._places[0]
         fR, xR = opt._places[-1]
-        return FringeCondition(N, m, s, fL, xL, fR, xR, amin)
+        return FringeCondition(fixed, N, m, fL, xL, fR, xR, amin)
