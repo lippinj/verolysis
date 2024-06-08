@@ -57,7 +57,7 @@ def test_bunched_nonnegative():
     assert o.success
 
     f = opt.build()
-    assert len(f) == 4
+    assert len(f) == 5
     assert_almost_equal(f.count(), ref.count(), decimal=2)
     assert_almost_equal(f.sum(), ref.sum(), decimal=2)
 
@@ -132,18 +132,17 @@ def test_case_c():
     opt.add(27_498, 0.70)
     opt.add(28_284, 0.80)
     opt.add(29_076, 0.90)
-    print(opt._fixed_sum())
     o = opt.optimize()
     assert o.success
 
     f = opt.build()
-    assert len(f._segments) == 12
+    assert len(f._segments) == 13
     assert_segments_are_sane(f._segments)
 
-    assert f._segments[0].b == 7_535
-    assert f._segments[11].a == 29_076
+    assert f._segments[1].b == 7_535
+    assert f._segments[12].a == 29_076
     assert f._segments[0].a >= 0
-    assert f._segments[0].a < 7_535
-    assert f._segments[11].b > 29_076
+    assert f._segments[1].a < 7_535
+    assert f._segments[12].b > 29_076
     assert_almost_equal(f.count(), 256_083, decimal=2)
     assert_almost_equal(f.sum(), 256_083 * 22_398, decimal=2)
