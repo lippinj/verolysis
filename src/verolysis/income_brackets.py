@@ -1,4 +1,5 @@
 import scipy
+import numpy as np
 import pandas as pd
 
 from verolysis.piecewise_density import PiecewiseDensity
@@ -25,16 +26,20 @@ def to_density(df: pd.DataFrame) -> PiecewiseDensity:
     for i in range(len(df)):
         row = df.iloc[i]
         if row.Tuloluokka != "SS":
-            optimizer, opt = _optimize_row_density(row)
-            f.add(optimizer.build())
+            fd = _optimize_row_density(row)
+            if fd is not None:
+                f.add(fd)
     return f
 
 
-def _optimize_row_density(
-    row,
-) -> tuple[PiecewiseDensityOptimizer, scipy.optimize.OptimizeResult]:
+def _optimize_row_density(row) -> PiecewiseDensity | None:
     optimizer = PiecewiseDensityOptimizer(row.N, row.Mean, 0.0)
     for key, frac in _FRAC_KEYS:
         if key in row:
-            optimizer.add(row[key], frac)
-    return optimizer, optimizer.optimize()
+            if np.isfinite(row[key]):
+                optimizer.add(row[key], frac)
+            else:
+                return None
+    opt = optimizer.optimize()
+    assert opt.success
+    return optimizer.build()
