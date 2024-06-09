@@ -2,12 +2,18 @@ import pandas as pd
 import statfin
 
 
-def ansiotulot(year: int) -> pd.DataFrame:
-    return _query("HVT_TULOT_70", year)
+def ansiotulot(year: int, group=None) -> pd.DataFrame:
+    df = _query("HVT_TULOT_70", year)
+    if group:
+        df = df[df.Tulonsaajaryhmä == str(group)]
+    return df
 
 
-def palkkatulot(year: int) -> pd.DataFrame:
-    return _query("HVT_TULOT_80", year)
+def palkkatulot(year: int, group=None) -> pd.DataFrame:
+    df = _query("HVT_TULOT_80", year)
+    if group:
+        df = df[df.Tulonsaajaryhmä == str(group)]
+    return df
 
 
 def _query(part: str, year: int) -> pd.DataFrame:
