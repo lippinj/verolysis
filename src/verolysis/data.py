@@ -21,6 +21,6 @@ def _query(part: str, year: int) -> pd.DataFrame:
             "Tunnusluvut": "*",
             "Erä": part,
         },
-        cache=f"tulot_101.{year}.{part}.df",
+        cache=f"tulot_101.{year}.{part}",
     )
     return df
