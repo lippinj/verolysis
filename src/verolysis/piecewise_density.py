@@ -78,6 +78,10 @@ class PiecewiseDensity:
                 n += overlap.s
         return n
 
+    def sum_above(self, a: float) -> float:
+        """Sum of only the excess of values above a"""
+        return self.sum(a, None) - (a * self.count(a, None))
+
     def mean(self, a=None, b=None) -> float:
         """
         Average of the function
