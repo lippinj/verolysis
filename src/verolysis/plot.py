@@ -12,11 +12,16 @@ def plot(what, *args, **kwargs):
 
 
 def plot_density(f: PiecewiseDensity, *args, **kwargs) -> None:
-    ax = _get_axis(**kwargs)
-    _set_grid(ax, **kwargs)
+    ax = prepare_axis(**kwargs)
     ax.bar(f.va, f.vh, f.vw, align="edge")
     _set_limits(ax, f, **kwargs)
+
+
+def prepare_axis(**kwargs) -> Axes:
+    ax = _get_axis(**kwargs)
+    _set_grid(ax, **kwargs)
     _set_xformatter(ax)
+    return ax
 
 
 def _set_limits(ax: Axes, f: PiecewiseDensity, **kwargs) -> None:
@@ -40,7 +45,7 @@ def _guess_height(f) -> float:
         return np.max(f.vh) * 1.1
 
 
-def _set_xformatter(ax) -> Axes:
+def _set_xformatter(ax) -> None:
     ax.get_xaxis().set_major_formatter(FuncFormatter(_xp_repr))
 
 
