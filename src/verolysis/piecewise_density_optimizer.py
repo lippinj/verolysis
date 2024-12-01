@@ -126,8 +126,8 @@ class PiecewiseDensityOptimizer:
             rf, rv = places[i + 1]
             df = rf - lf
             dv = rv - lv
-            h = self._N * df / dv
-            yield Segment(lv, rv, h)
+            n = self._N * df
+            yield Segment(lv, rv, n)
 
 
 class FringeCondition:

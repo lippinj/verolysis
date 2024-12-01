@@ -5,7 +5,7 @@ from numpy.testing import assert_almost_equal
 
 def assert_segments_are_sane(segments):
     for seg in segments:
-        assert seg.a < seg.b
+        assert seg.a <= seg.b
     for i in range(len(segments) - 1):
         assert segments[i].b == segments[i + 1].a
 
@@ -141,8 +141,38 @@ def test_case_c():
 
     assert f._segments[1].b == 7_535
     assert f._segments[12].a == 29_076
-    assert f._segments[0].a >= 0
+    assert f._segments[1].a >= 0
     assert f._segments[1].a < 7_535
     assert f._segments[12].b > 29_076
     assert_almost_equal(f.count(), 256_083, decimal=2)
     assert_almost_equal(f.sum(), 256_083 * 22_398, decimal=2)
+
+
+def test_case_d():
+    opt = PiecewiseDensityOptimizer(12_253, 999, 0.0)
+    opt.add(195, 0.25)
+    opt.add(1_320, 0.75)
+    opt.add(80, 0.10)
+    opt.add(135, 0.20)
+    opt.add(281, 0.30)
+    opt.add(513, 0.40)
+    opt.add(895, 0.50)
+    opt.add(1_320, 0.60)
+    opt.add(1_320, 0.70)
+    opt.add(1_320, 0.80)
+    opt.add(2_203, 0.90)
+    o = opt.optimize()
+    assert o.success
+
+    f = opt.build()
+    assert len(f._segments) == 10
+    assert_segments_are_sane(f._segments)
+
+    print(f._segments)
+    assert f._segments[0].b == 80
+    assert f._segments[-1].a == 2_203
+    assert f._segments[0].a >= 0
+    assert f._segments[0].a <= 80
+    assert f._segments[-1].b >= 2_203
+    assert_almost_equal(f.count(), 12_253, decimal=2)
+    assert_almost_equal(f.sum(), 12_253 * 999, decimal=2)

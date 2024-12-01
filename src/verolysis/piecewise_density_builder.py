@@ -15,8 +15,7 @@ class PiecewiseDensityBuilder:
             pcount, pvalue = self._prev
             assert count > pcount
             assert value > pvalue
-            density = (count - pcount) / (value - pvalue)
-            self._segments.append(Segment(pvalue, value, density))
+            self._segments.append(Segment(pvalue, value, count - pcount))
         self._prev = (count, value)
 
     def build(self) -> PiecewiseDensity:

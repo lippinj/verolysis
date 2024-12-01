@@ -65,7 +65,7 @@ class PiecewiseDensity:
             j = i + seg.n
             if j >= n:
                 dn = n - i
-                dx = dn / seg.h
+                dx = dn / seg.h if seg.w > 0 else 0
                 return seg.a + dx
             i = j
         return right or self.xmax
@@ -172,7 +172,7 @@ class Segment:
 
     a: float
     b: float
-    h: float
+    n: float
 
     @property
     def w(self):
@@ -183,45 +183,94 @@ class Segment:
         return (self.a + self.b) / 2
 
     @property
-    def n(self):
-        return self.w * self.h
+    def h(self):
+        return self.n / self.w
 
     @property
     def s(self):
         return self.n * self.m
 
     def overlap(self, a, b):
-        a = self.a if a is None else max(a, self.a)
-        b = self.b if b is None else min(b, self.b)
-        return Segment(a, b, self.h) if b > a else None
+        if self.w > 0:
+            a = self.a if a is None else max(a, self.a)
+            b = self.b if b is None else min(b, self.b)
+            return Segment(a, b, self.h * (b - a)) if b > a else None
+        elif a is None and b is None:
+            return self
+        elif a is None:
+            return self if b > self.a else None
+        elif b is None:
+            return self if a <= self.a else None
+        elif a == b:
+            return self if a == self.a else None
+        else:
+            return self if a <= self.a and b > self.b else None
 
     @staticmethod
     def merge(
         s: "Segment", t: "Segment"
     ) -> tuple[list["Segment"], Union["Segment", None]]:
         S = Segment
+        if s.w == 0 and t.w == 0:
+            if s.a < t.a:
+                return [s], t
+            elif s.a == t.a:
+                return [S(s.a, s.b, s.n + t.n)], None
+            else:
+                return [t], s
+        elif s.w == 0:
+            if t.b <= s.a:
+                return [t], s
+            elif t.a >= s.a:
+                return [s], t
+            else:
+                return [t.overlap(t.a, s.a), s], t.overlap(s.b, t.b)
+        elif t.w == 0:
+            return Segment.merge(t, s)
         if s.a < t.a:
             if s.b <= t.a:
                 return [s], t
             elif s.b < t.b:
-                return [S(s.a, t.a, s.h), S(t.a, s.b, s.h + t.h)], S(s.b, t.b, t.h)
+                return [
+                    S(s.a, t.a, s.h * (t.a - s.a)),
+                    S(t.a, s.b, (s.h + t.h) * (s.b - t.a)),
+                ], S(s.b, t.b, t.h * (t.b - s.b))
             elif s.b == t.b:
-                return [S(s.a, t.a, s.h), S(t.a, s.b, s.h + t.h)], None
+                return [
+                    S(s.a, t.a, s.h * (t.a - s.a)),
+                    S(t.a, s.b, (s.h + t.h) * (s.b - t.a)),
+                ], None
             else:
-                return [S(s.a, t.a, s.h), S(t.a, t.b, s.h + t.h)], S(t.b, s.b, s.h)
+                return [
+                    S(s.a, t.a, s.h * (t.a - s.a)),
+                    S(t.a, t.b, (s.h + t.h) * (t.b - t.a)),
+                ], S(t.b, s.b, s.h * (s.b - t.b))
         elif s.a == t.a:
             if s.b < t.b:
-                return [S(s.a, s.b, s.h + t.h)], S(s.b, t.b, t.h)
+                return [S(s.a, s.b, (s.h + t.h) * (s.b - s.a))], S(
+                    s.b, t.b, t.h * (t.b - s.b)
+                )
             elif s.b == t.b:
-                return [S(s.a, s.b, s.h + t.h)], None
+                return [S(s.a, s.b, (s.h + t.h) * (s.b - s.a))], None
             else:
-                return [S(s.a, t.b, s.h + t.h)], S(t.b, s.b, s.h)
+                return [S(s.a, t.b, (s.h + t.h) * (t.b - s.a))], S(
+                    t.b, s.b, s.h * (s.b - t.b)
+                )
         elif s.a < t.b:
             if s.b < t.b:
-                return [S(t.a, s.a, t.h), S(s.a, s.b, t.h + s.h)], S(s.b, t.b, t.h)
+                return [
+                    S(t.a, s.a, t.h * (s.a - t.a)),
+                    S(s.a, s.b, (t.h + s.h) * (s.b - s.a)),
+                ], S(s.b, t.b, t.h * (t.b - s.b))
             elif s.b == t.b:
-                return [S(t.a, s.a, t.h), S(s.a, t.b, t.h + s.h)], None
+                return [
+                    S(t.a, s.a, t.h * (s.a - t.a)),
+                    S(s.a, t.b, (t.h + s.h) * (t.b - s.a)),
+                ], None
             else:
-                return [S(t.a, s.a, t.h), S(s.a, t.b, t.h + s.h)], S(t.b, s.b, s.h)
+                return [
+                    S(t.a, s.a, t.h * (s.a - t.a)),
+                    S(s.a, t.b, (t.h + s.h) * (t.b - s.a)),
+                ], S(t.b, s.b, s.h * (s.b - t.b))
         else:
             return [t], s
