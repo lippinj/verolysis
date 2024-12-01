@@ -209,7 +209,7 @@ class FringeCondition:
     def score_left1(self, x: np.ndarray) -> float:
         a1 = x[0]
         a2 = self.fixed[0].a
-        a3 = self.fixed[1].a
+        a3 = self.fixed[0].b
         return self._score_eq(a3 - a2, a2 - a1)
 
     def score_left3(self, x: np.ndarray) -> float:

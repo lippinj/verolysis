@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from verolysis.piecewise_density import PiecewiseDensity
+from verolysis.piecewise_density import PiecewiseDensity, Segment
 from verolysis.piecewise_density_optimizer import PiecewiseDensityOptimizer
 
 
@@ -32,15 +32,19 @@ def to_density(df: pd.DataFrame) -> PiecewiseDensity:
 
 
 def row_to_density(row) -> PiecewiseDensity | None:
-    optimizer = PiecewiseDensityOptimizer(row.N, row.Mean, 0.0)
-    fracs_found = 0
+    fracs = []
     for key, frac in _FRAC_KEYS:
         if key in row:
             if np.isfinite(row[key]):
-                optimizer.add(row[key], frac)
-                fracs_found += 1
-    if fracs_found > 0:
+                fracs.append((row[key], frac))
+    if len(fracs) > 0:
+        optimizer = PiecewiseDensityOptimizer(row.N, row.Mean, 0.0)
+        for f in fracs:
+            optimizer.add(*f)
         opt = optimizer.optimize()
         assert opt.success
         return optimizer.build()
-    return None
+    else:
+        density = PiecewiseDensity()
+        density.add(Segment(row.Mean, row.Mean, row.N))
+        return density

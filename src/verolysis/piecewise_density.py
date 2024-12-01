@@ -59,7 +59,7 @@ class PiecewiseDensity:
         Finds x such that count(None, x) == n.
         """
         if n < 0:
-            return left or self.xmin
+            return self.xmin if left is None else left
         i = 0
         for seg in self._segments:
             j = i + seg.n
@@ -68,16 +68,23 @@ class PiecewiseDensity:
                 dx = dn / seg.h if seg.w > 0 else 0
                 return seg.a + dx
             i = j
-        return right or self.xmax
+        return self.xmax if right is None else right
 
-    def uniform_sample(self, k, leftpad=None, rightpad=None) -> float:
+    def uniform_sample(
+        self, k, leftpad=None, rightpad=None, left=None, right=None
+    ) -> float:
         """Uniform sampling of values"""
         assert leftpad is None or rightpad is None
         count = self.count()
         a = count - leftpad if leftpad else 0
         b = rightpad if rightpad else count
         step = (b - a) / k
-        return np.array([self.icount(a + (i + 0.5) * step) for i in range(k)])
+        return np.array(
+            [
+                self.icount(a + (i + 0.5) * step, left=left, right=right)
+                for i in range(k)
+            ]
+        )
 
     def count(self, a=None, b=None) -> float:
         """

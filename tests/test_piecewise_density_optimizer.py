@@ -10,7 +10,20 @@ def assert_segments_are_sane(segments):
         assert segments[i].b == segments[i + 1].a
 
 
-def test_simple():
+def test_simple_two_point():
+    opt = PiecewiseDensityOptimizer(100, 0.0)
+    opt.add(-1, 0.25)
+    opt.add(1, 0.75)
+    o = opt.optimize()
+    assert o.success
+
+    f = opt.build()
+    assert len(f) == 3
+    assert_almost_equal(f.count(), 100, decimal=2)
+    assert_almost_equal(f.sum(), 0, decimal=2)
+
+
+def test_simple_three_point():
     opt = PiecewiseDensityOptimizer(100, 0.0)
     opt.add(-1, 0.25)
     opt.add(0, 0.50)
