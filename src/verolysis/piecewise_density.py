@@ -195,16 +195,15 @@ class Segment:
             a = self.a if a is None else max(a, self.a)
             b = self.b if b is None else min(b, self.b)
             return Segment(a, b, self.h * (b - a)) if b > a else None
-        elif a is None and b is None:
+        if a is None and b is None:
             return self
-        elif a is None:
+        if a is None:
             return self if b > self.a else None
-        elif b is None:
+        if b is None:
             return self if a <= self.a else None
-        elif a == b:
+        if a == b:
             return self if a == self.a else None
-        else:
-            return self if a <= self.a and b > self.b else None
+        return self if a <= self.a and b > self.b else None
 
     @staticmethod
     def merge(

@@ -1,4 +1,3 @@
-import scipy
 import numpy as np
 import pandas as pd
 
@@ -8,7 +7,7 @@ from verolysis.piecewise_density_optimizer import PiecewiseDensityOptimizer
 
 _FRAC_KEYS = (
     ("Q1", 0.25),
-    ("Q2", 0.25),
+    ("Q3", 0.75),
     ("P10", 0.10),
     ("P20", 0.20),
     ("P30", 0.30),
@@ -34,12 +33,14 @@ def to_density(df: pd.DataFrame) -> PiecewiseDensity:
 
 def row_to_density(row) -> PiecewiseDensity | None:
     optimizer = PiecewiseDensityOptimizer(row.N, row.Mean, 0.0)
+    fracs_found = 0
     for key, frac in _FRAC_KEYS:
         if key in row:
             if np.isfinite(row[key]):
                 optimizer.add(row[key], frac)
-            else:
-                return None
-    opt = optimizer.optimize()
-    assert opt.success
-    return optimizer.build()
+                fracs_found += 1
+    if fracs_found > 0:
+        opt = optimizer.optimize()
+        assert opt.success
+        return optimizer.build()
+    return None

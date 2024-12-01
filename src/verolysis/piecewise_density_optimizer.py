@@ -86,7 +86,6 @@ class PiecewiseDensityOptimizer:
 
     def _score3(self, x):
         fr = self._require_fringe_condition()
-        a1, a0, n0 = x
         return fr.score_left3(x) + fr.score_right(*fr(x))
 
     def _fixed_sum(self):
@@ -96,9 +95,8 @@ class PiecewiseDensityOptimizer:
         assert self._x is not None
         if len(self._x) == 1:
             return self._full_segments1()
-        else:
-            assert len(self._x) == 3
-            return self._full_segments3()
+        assert len(self._x) == 3
+        return self._full_segments3()
 
     def _full_segments1(self):
         x = self._x
@@ -124,9 +122,7 @@ class PiecewiseDensityOptimizer:
         for i in range(len(places) - 1):
             lf, lv = places[i]
             rf, rv = places[i + 1]
-            df = rf - lf
-            dv = rv - lv
-            n = self._N * df
+            n = self._N * (rf - lf)
             yield Segment(lv, rv, n)
 
 
