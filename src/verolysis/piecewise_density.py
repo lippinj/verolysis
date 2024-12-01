@@ -21,8 +21,8 @@ class PiecewiseDensity:
     def __len__(self):
         return len(self._segments)
 
-    def __getitem__(self, *args):
-        return self._segments[*args]
+    def __getitem__(self, i):
+        return self._segments[i]
 
     @property
     def empty(self) -> bool:
@@ -51,6 +51,33 @@ class PiecewiseDensity:
     @property
     def vh(self):
         return np.array([seg.h for seg in self._segments])
+
+    def icount(self, n, left=None, right=None) -> float:
+        """
+        Inverse count function
+
+        Finds x such that count(None, x) == n.
+        """
+        if n < 0:
+            return left or self.xmin
+        i = 0
+        for seg in self._segments:
+            j = i + seg.n
+            if j >= n:
+                dn = n - i
+                dx = dn / seg.h
+                return seg.a + dx
+            i = j
+        return right or self.xmax
+
+    def uniform_sample(self, k, leftpad=None, rightpad=None) -> float:
+        """Uniform sampling of values"""
+        assert leftpad is None or rightpad is None
+        count = self.count()
+        a = count - leftpad if leftpad else 0
+        b = rightpad if rightpad else count
+        step = (b - a) / k
+        return np.array([self.icount(a + (i + 0.5) * step) for i in range(k)])
 
     def count(self, a=None, b=None) -> float:
         """

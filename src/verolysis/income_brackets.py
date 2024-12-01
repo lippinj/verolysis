@@ -26,13 +26,13 @@ def to_density(df: pd.DataFrame) -> PiecewiseDensity:
     for i in range(len(df)):
         row = df.iloc[i]
         if row.Tuloluokka != "SS":
-            fd = _optimize_row_density(row)
+            fd = row_to_density(row)
             if fd is not None:
                 f.add(fd)
     return f
 
 
-def _optimize_row_density(row) -> PiecewiseDensity | None:
+def row_to_density(row) -> PiecewiseDensity | None:
     optimizer = PiecewiseDensityOptimizer(row.N, row.Mean, 0.0)
     for key, frac in _FRAC_KEYS:
         if key in row:
