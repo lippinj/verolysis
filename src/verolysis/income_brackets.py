@@ -42,7 +42,7 @@ def row_to_density(row) -> PiecewiseDensity | None:
         for f in fracs:
             optimizer.add(*f)
         opt = optimizer.optimize()
-        assert opt.success
+        assert opt.success, opt
         return optimizer.build()
     else:
         density = PiecewiseDensity()

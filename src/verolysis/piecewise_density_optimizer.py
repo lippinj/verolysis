@@ -56,6 +56,7 @@ class PiecewiseDensityOptimizer:
             method="trust-constr",
             bounds=bounds,
             constraints=constraints,
+            options=dict(maxiter=100_000),
         )
         warnings.resetwarnings()
         return opt
