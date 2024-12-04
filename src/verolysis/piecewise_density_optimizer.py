@@ -56,7 +56,7 @@ class PiecewiseDensityOptimizer:
             method="trust-constr",
             bounds=bounds,
             constraints=constraints,
-            options=dict(maxiter=100_000),
+            options=dict(maxiter=1_000_000),
         )
         warnings.resetwarnings()
         return opt
@@ -214,7 +214,7 @@ class FringeCondition:
         return self._score_eq(a3 - a2, a2 - a1)
 
     def score_left3(self, x: np.ndarray) -> float:
-        return self.score_left1(x)
+        return self.score_left1(x) + (x[2] / self.nL) ** 2
 
     def score_right(self, b: float, nb: float) -> float:
         b2 = self.fixed[-1].b
